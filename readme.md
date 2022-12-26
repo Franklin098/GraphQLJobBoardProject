@@ -41,3 +41,156 @@ When we do a query, we always use the POST method, and the body is a json with t
 By default the apollo graphql sandbox has schema polling enable.
 
 At the end of the day all graphQL Clients create HTTP request for doing queries, so you can use GraphQL in any programming language and framework.
+
+### Resolution Chain
+
+GraphQL has a 'resolution chain', it works like a tree from top to button.
+
+First it starts at the Query object and we can writing specific resolvers as needed for every type in our schema.
+
+### Query Arguments
+
+To pass in information, for example get a specific item by its ID.
+
+Client Query:
+
+```
+query{
+  job(id: "soP9m8MdKeQX_ZXZOCSaL") {
+    id
+    title
+  }
+}
+```
+
+Server schema definition:
+
+```
+type Query {
+  jobs: [Job!]
+  job(id: ID!): Job # return a single job
+}
+```
+
+### Query Variables
+
+We can name a query
+
+Client side query:
+
+```
+query JobQuery {
+
+}
+```
+
+Then using parenthesis we can pass it variables, variables starts with a dollar $ sign.
+
+Client side query:
+
+```
+query JobQuery($id: ID!){
+  job(id: $id) {
+    id
+    title
+    description
+    company {
+      id
+      name
+    }
+  }
+}
+```
+
+Then in the GraphQL Sandbox we can add the value of the variable in the "Variables" tab, but now without dollar $ sign.
+
+```
+{
+  "id": "soP9m8MdKeQX_ZXZOCSaL"
+}
+```
+
+It is a good practice to always name your queries, makes debugging easier.
+
+### Object Graph Navigation
+
+With GraphQL we can create associations between objects in both directions, and easy navigate between them.
+
+Server side schema:
+
+```
+type Query {
+  jobs: [Job!]
+  job(id: ID!): Job # return a single job
+  company(id: ID!): Company
+}
+
+type Job {
+  id: ID!
+  title: String!
+  description: String
+  company: Company!
+}
+
+type Company {
+  id: ID!
+  name: String!
+  description: String
+  jobs: [Job!]
+}
+
+```
+
+When requesting a single job or a list of jobs, we get the company data for each job.
+
+And also, when requesting a single company, we can then navigate and get data of multiple jobs.
+
+Server side resolvers:
+
+```
+export const resolvers = {
+  Query: {
+    jobs: async () => Job.findAll(),
+    job: (_root, args) => {
+      const id = args.id;
+      return Job.findById(id);
+    },
+    company: (_root, { id }) => Company.findById(id),
+  },
+
+  Job: {
+    company: (job) => {
+      return Company.findById(job.companyId);
+    },
+  },
+
+  Company: {
+    jobs: (company) => Job.findAll((job) => job.companyId === company.id),
+  },
+};
+```
+
+We can even have **recursive** nested queries:
+
+```
+query CompanyQuery ($id: ID!){
+  company(id: $id) { # getting Company
+    name
+    description
+    jobs {  # getting Job
+      title
+      id
+      company {  # getting Company Again !
+        id
+        name
+      }
+    }
+  }
+}
+```
+
+**GraphQL will resolve the client query using the resolvers recursively.**
+
+Facebook created GraphQL to easy traverse graphs, if you think about it, Facebook network is a big graph between friends relationships.
+
+### Error Handling
