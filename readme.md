@@ -34,6 +34,8 @@ Facebook created GraphQL you power up their mobile apps, they were too slow beca
 
 Easy way to setup a GraphQL server
 
+# Working with GraphQL
+
 ## Queries
 
 When we do a query, we always use the POST method, and the body is a json with the query itself.
@@ -170,7 +172,7 @@ export const resolvers = {
 };
 ```
 
-We can even have **recursive** nested queries:
+We can even create **recursive** nested queries:
 
 ```
 query CompanyQuery ($id: ID!){
@@ -193,4 +195,135 @@ query CompanyQuery ($id: ID!){
 
 Facebook created GraphQL to easy traverse graphs, if you think about it, Facebook network is a big graph between friends relationships.
 
-### Error Handling
+## Mutations
+
+Mutations is about modifying data.
+
+For examples, if you want to submit a form and save the data in the database.
+
+Inside schema.graphql:
+
+```
+type Mutations {
+  createJob(title: String!, companyId: ID!, description: String): Job
+}
+```
+
+In the above example title and companyId are mandatory fields, description is optional.
+
+We are also returning the new created Job.
+
+Mutation Request:
+
+```
+mutation Mutation {
+  createJob(
+    title: "Job 1" ,
+    companyId: "pVbRRBQtMVw6lUAkj1k43" ,
+    description: "text"
+  ) {
+    id,
+    title,
+    company {
+      id,
+      name
+    }
+  }
+}
+```
+
+Note that we are also defining which Job fields do we want in the response.
+
+Response:
+
+```
+{
+  "data": {
+    "createJob": {
+      "id": "qM5zOG6sKi0JZbeJ0mqTC",
+      "title": "Job 1",
+      "company": {
+        "id": "pVbRRBQtMVw6lUAkj1k43",
+        "name": "Facegle"
+      }
+    }
+  }
+}
+```
+
+Note how an id was automatically created by the server.
+
+### Input Types
+
+Instead of passing a list of lots of arguments we can use input types. We should use the **type** keyword for declaring inputs.
+
+Before:
+
+```
+type Mutation {
+  createJob(title: String!, companyId: ID!, description: String): Job
+}
+```
+
+Using Input Types:
+
+```
+input CreateJobInput {
+  title: String!
+  companyId: ID!
+  description: String
+}
+
+type Mutation {
+  createJob(input: CreateJobInput!): Job
+}
+
+```
+
+In the request now we can use variables:
+
+```
+// Request:
+
+mutation CreateJoMutation($input: CreateJobInput!) {
+  job: createJob(
+    input:$input
+  ) {
+    id,
+    title,
+    company {
+      id,
+      name
+    }
+  }
+}
+
+// Variables:
+
+{
+  "input": {
+    "title": "Job 2",
+    "companyId": "pVbRRBQtMVw6lUAkj1k43",
+    "description": "test Description 2"
+  }
+}
+```
+
+Since we used an alias "job" in the "createJob" query,then we get that name in the response:
+
+Response:
+
+```
+{
+  "data": {
+    "job": {
+      "id": "3FLBYUjq8wHoQO8W3t6GO",
+      "title": "Job 3",
+      "company": {
+        "id": "pVbRRBQtMVw6lUAkj1k43",
+        "name": "Facegle"
+      }
+    }
+  }
+}
+```
