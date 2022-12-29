@@ -11,6 +11,8 @@ const PORT = 9000;
 const JWT_SECRET = Buffer.from("Zn8Q5tyZ/G1MHltc4F/gTkVJMlrbKiZt", "base64");
 
 const app = express();
+
+// middleware it is applied to every request we receive
 app.use(
   cors(),
   express.json(),
@@ -35,7 +37,15 @@ app.post("/login", async (req, res) => {
 // import the schema definition
 const typeDefs = readFileSync("./schema.graphql", { encoding: "utf-8" });
 
-const apolloServer = new ApolloServer({ typeDefs, resolvers });
+const context = async ({ req, res }) => {
+  if (req.auth) {
+    const user = await User.findById(req.auth.sub);
+    return { user };
+  }
+  return {};
+};
+
+const apolloServer = new ApolloServer({ typeDefs, resolvers, context });
 
 await apolloServer.start();
 

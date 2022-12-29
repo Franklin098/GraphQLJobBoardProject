@@ -1,4 +1,10 @@
-import { Job, Company } from "./db.js";
+import { Job, Company, User } from "./db.js";
+
+function rejectIf(condition) {
+  if (condition) {
+    throw new Error("Unauthorized");
+  }
+}
 
 export const resolvers = {
   Query: {
@@ -24,13 +30,29 @@ export const resolvers = {
   },
 
   Mutation: {
-    createJob: async (_root, args) => {
+    createJob: async (_root, args, context) => {
+      const { user } = context;
+      rejectIf(!user);
+      const { companyId } = user;
       const { input } = args;
-      const job = await Job.create(input);
+      const job = await Job.create({ ...input, companyId });
       return job;
     },
-    deleteJob: (_root, { id }) => Job.delete(id),
-    updateJob: (_root, { input }) => Job.update(input),
+    deleteJob: async (_root, { id }, context) => {
+      const { user } = context;
+      rejectIf(!user);
+      const job = await Job.findById(id);
+      rejectIf(job.companyId !== user.companyId);
+      return Job.delete(id);
+    },
+
+    updateJob: async (_root, { input }, context) => {
+      const { user } = context;
+      rejectIf(!user);
+      const job = await Job.findById(input.id);
+      rejectIf(job.companyId !== user.companyId);
+      return Job.update({ ...input, companyId: job.companyId });
+    },
   },
 };
 
