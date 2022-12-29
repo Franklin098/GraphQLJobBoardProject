@@ -22,6 +22,16 @@ export const resolvers = {
   Company: {
     jobs: (company) => Job.findAll((job) => job.companyId === company.id),
   },
+
+  Mutation: {
+    createJob: async (_root, args) => {
+      const { input } = args;
+      const job = await Job.create(input);
+      return job;
+    },
+    deleteJob: (_root, { id }) => Job.delete(id),
+    updateJob: (_root, { input }) => Job.update(input),
+  },
 };
 
 // GraphQL has a 'resolution chain', it works like a tree from top to button
