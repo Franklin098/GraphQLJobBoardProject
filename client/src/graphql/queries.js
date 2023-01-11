@@ -1,11 +1,17 @@
-import { request, gql } from "graphql-request";
+import { ApolloClient, gql, InMemoryCache } from "@apollo/client"; // similar to graph-ql request, but provides more tools. Parses and validates from the client
+import { request } from "graphql-request";
 import { getAccessToken } from "../auth";
 
 const GRAPHQL_URL = "http://localhost:9000/graphql";
 
+const client = new ApolloClient({
+  uri: GRAPHQL_URL,
+  cache: new InMemoryCache(), // cache the queries, avoids multiple request for the same query with an expiring policy
+});
+
 export async function getJobs() {
   const query = gql`
-    query {
+    query JobQuery {
       jobs {
         id
         title
@@ -16,7 +22,8 @@ export async function getJobs() {
     }
   `;
 
-  const data = await request(GRAPHQL_URL, query);
+  const result = await client.query({ query });
+  const { data } = result;
   return data.jobs;
 }
 

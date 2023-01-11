@@ -16,6 +16,7 @@ function JobBoard() {
       setJobs(responseJobs);
     } catch (error) {
       setIsError(true);
+      console.log("error in getJobs()", error);
     }
   };
 
