@@ -42,7 +42,8 @@ export async function getJob(id) {
     }
   `;
   const variables = { id };
-  const data = await request(GRAPHQL_URL, query, variables);
+  const result = await client.query({ query, variables });
+  const { data } = result;
   return data.job;
 }
 
