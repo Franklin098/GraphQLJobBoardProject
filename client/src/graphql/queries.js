@@ -70,7 +70,7 @@ export async function getCompany(id) {
 }
 
 export async function createJob(input) {
-  const query = gql`
+  const mutation = gql`
     mutation CreateJoMutation($input: CreateJobInput!) {
       job: createJob(input: $input) {
         id
@@ -85,6 +85,15 @@ export async function createJob(input) {
 
   const variables = { input };
   const headers = { Authorization: `Bearer ${getAccessToken()}` };
-  const data = await request(GRAPHQL_URL, query, variables, headers);
-  return data.job;
+
+  const result = await client.mutate({
+    mutation,
+    variables,
+    context: { headers },
+  });
+
+  const {
+    data: { job },
+  } = result;
+  return job;
 }
