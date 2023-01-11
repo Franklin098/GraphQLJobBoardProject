@@ -62,7 +62,10 @@ export async function getCompany(id) {
   `;
 
   const variables = { id };
-  const { company } = await request(GRAPHQL_URL, query, variables);
+  const result = await client.query({ query, variables });
+  const {
+    data: { company },
+  } = result;
   return company;
 }
 
