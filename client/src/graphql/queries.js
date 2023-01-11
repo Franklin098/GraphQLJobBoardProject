@@ -1,5 +1,4 @@
 import { ApolloClient, gql, InMemoryCache } from "@apollo/client"; // similar to graph-ql request, but provides more tools. Parses and validates from the client
-import { request } from "graphql-request";
 import { getAccessToken } from "../auth";
 
 const GRAPHQL_URL = "http://localhost:9000/graphql";
