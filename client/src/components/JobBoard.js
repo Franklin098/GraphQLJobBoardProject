@@ -1,33 +1,24 @@
+import { useQuery } from "@apollo/client";
+import { JOBS_QUERY } from "../graphql/queries";
 import JobList from "./JobList";
-import { getJobs } from "../graphql/queries";
-import { useEffect, useState } from "react";
 
 function JobBoard() {
-  const [jobs, setJobs] = useState([]);
-  const [isError, setIsError] = useState(false);
+  const { data, loading, error } = useQuery(JOBS_QUERY, {
+    fetchPolicy: "network-only",
+  });
 
-  useEffect(() => {
-    fetchJobs();
-  }, []);
+  if (loading) {
+    return <p>Loading ...</p>;
+  }
 
-  const fetchJobs = async () => {
-    try {
-      const responseJobs = await getJobs();
-      setJobs(responseJobs);
-    } catch (error) {
-      setIsError(true);
-      console.log("error in getJobs()", error);
-    }
-  };
-
-  if (isError) {
+  if (error) {
     return <p>Sorry, something went wrong.</p>;
   }
 
   return (
     <div>
       <h1 className="title">Job Board</h1>
-      <JobList jobs={jobs} />
+      <JobList jobs={data.jobs} />
     </div>
   );
 }

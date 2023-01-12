@@ -3,7 +3,7 @@ import { getAccessToken } from "../auth";
 
 const GRAPHQL_URL = "http://localhost:9000/graphql";
 
-const client = new ApolloClient({
+export const client = new ApolloClient({
   uri: GRAPHQL_URL,
   cache: new InMemoryCache(), // cache the queries, avoids multiple request for the same query with an expiring policy
   defaultOptions: {
@@ -36,24 +36,26 @@ const JOB_QUERY = gql`
   ${JOB_DETAIL_FRAGMENT}
 `;
 
-export async function getJobs() {
-  const query = gql`
-    query JobQuery {
-      jobs {
+// A good practice while using ApolloClient is to always fetch the ID of every object, even if we don't use it.
+// It can helps with caching. ApolloClient normalizes data to avoid having duplicate data, it uses the ID to do it.
+export const JOBS_QUERY = gql`
+  query JobQuery {
+    jobs {
+      id
+      title
+      company {
         id
-        title
-        company {
-          id
-          name
-        }
+        name
       }
     }
-  `;
+  }
+`;
 
-  // A good practice while using ApolloClient is to always fetch the ID of every object, even if we don't use it.
-  // It can helps with caching. ApolloClient normalizes data to avoid having duplicate data, it uses the ID to do it.
-
-  const result = await client.query({ query, fetchPolicy: "network-only" }); // no-cache and network-only are similar, but network-only still stores in the cache
+export async function getJobs() {
+  const result = await client.query({
+    JOBS_QUERY,
+    fetchPolicy: "network-only",
+  }); // no-cache and network-only are similar, but network-only still stores in the cache
   const { data } = result;
   return data.jobs;
 }
