@@ -6,7 +6,26 @@ const GRAPHQL_URL = "http://localhost:9000/graphql";
 const client = new ApolloClient({
   uri: GRAPHQL_URL,
   cache: new InMemoryCache(), // cache the queries, avoids multiple request for the same query with an expiring policy
+  defaultOptions: {
+    query: {
+      fetchPolicy: "cache-first",
+    },
+  },
 });
+
+const JOB_QUERY = gql`
+  query JobQuery($id: ID!) {
+    job(id: $id) {
+      id
+      title
+      description
+      company {
+        id
+        name
+      }
+    }
+  }
+`;
 
 export async function getJobs() {
   const query = gql`
@@ -15,33 +34,24 @@ export async function getJobs() {
         id
         title
         company {
-          name
-        }
-      }
-    }
-  `;
-
-  const result = await client.query({ query });
-  const { data } = result;
-  return data.jobs;
-}
-
-export async function getJob(id) {
-  const query = gql`
-    query JobQuery($id: ID!) {
-      job(id: $id) {
-        id
-        title
-        description
-        company {
           id
           name
         }
       }
     }
   `;
+
+  // A good practice while using ApolloClient is to always fetch the ID of every object, even if we don't use it.
+  // It can helps with caching. ApolloClient normalizes data to avoid having duplicate data, it uses the ID to do it.
+
+  const result = await client.query({ query, fetchPolicy: "network-only" }); // no-cache and network-only are similar, but network-only still stores in the cache
+  const { data } = result;
+  return data.jobs;
+}
+
+export async function getJob(id) {
   const variables = { id };
-  const result = await client.query({ query, variables });
+  const result = await client.query({ query: JOB_QUERY, variables });
   const { data } = result;
   return data.job;
 }
@@ -78,6 +88,7 @@ export async function createJob(input) {
           id
           name
         }
+        description
       }
     }
   `;
@@ -89,10 +100,21 @@ export async function createJob(input) {
     mutation,
     variables,
     context: { headers },
+
+    // executes after the mutation
+    update: (cache, { data: { job } }) => {
+      // store the data in the cache to avoid doing a new request when navigating to the Job detail page
+      cache.writeQuery({
+        query: JOB_QUERY,
+        variables: { id: job.id },
+        data: { job },
+      });
+    },
   });
 
   const {
     data: { job },
   } = result;
+
   return job;
 }

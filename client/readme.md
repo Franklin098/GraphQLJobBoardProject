@@ -15,3 +15,7 @@ We can even use Apollo Client as a **local state management system.**, so we can
 ```
 npm i -S @apollo/client graphql
 ```
+
+### Apollo Client Dev Tools - Chrome Extension
+
+Useful for debugging graphql apps, specially for looking at how the Apollo Cache is working.
