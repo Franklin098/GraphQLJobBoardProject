@@ -19,3 +19,25 @@ npm i -S @apollo/client graphql
 ### Apollo Client Dev Tools - Chrome Extension
 
 Useful for debugging graphql apps, specially for looking at how the Apollo Cache is working.
+
+## Fragment
+
+A part of an object that we can reuse in a query or in a mutation.
+
+```
+ query JobQuery($id: ID!) {
+    job(id: $id) {
+      ...JobDetail
+    }
+  }
+
+  fragment JobDetail on Job {
+    id
+    title
+    description
+    company {
+      id
+      name
+    }
+  }
+```
