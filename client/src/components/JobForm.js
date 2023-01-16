@@ -8,7 +8,8 @@ function JobForm() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [mutate] = useMutation(CREATE_JOB_MUTATION);
+  const [mutate, result] = useMutation(CREATE_JOB_MUTATION);
+  const { loading } = result;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -60,7 +61,11 @@ function JobForm() {
           </div>
           <div className="field">
             <div className="control">
-              <button className="button is-link" onClick={handleSubmit}>
+              <button
+                className="button is-link"
+                onClick={handleSubmit}
+                disabled={loading}
+              >
                 Submit
               </button>
             </div>
