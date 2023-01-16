@@ -51,6 +51,17 @@ export const JOBS_QUERY = gql`
   }
 `;
 
+export const CREATE_JOB_MUTATION = gql`
+  mutation CreateJoMutation($input: CreateJobInput!) {
+    job: createJob(input: $input) {
+      ...JobDetail
+    }
+  }
+
+  # insert expression here, like a string
+  ${JOB_DETAIL_FRAGMENT}
+`;
+
 export const COMPANY_QUERY = gql`
   query CompanyQuery($id: ID!) {
     company(id: $id) {
@@ -90,22 +101,11 @@ export async function getCompany(id) {
 }
 
 export async function createJob(input) {
-  const mutation = gql`
-    mutation CreateJoMutation($input: CreateJobInput!) {
-      job: createJob(input: $input) {
-        ...JobDetail
-      }
-    }
-
-    # insert expression here, like a string
-    ${JOB_DETAIL_FRAGMENT}
-  `;
-
   const variables = { input };
   const headers = { Authorization: `Bearer ${getAccessToken()}` };
 
   const result = await client.mutate({
-    mutation,
+    mutation: CREATE_JOB_MUTATION,
     variables,
     context: { headers },
 
