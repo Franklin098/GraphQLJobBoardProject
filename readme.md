@@ -327,3 +327,202 @@ Response:
   }
 }
 ```
+
+## The N + 1 Query Problem
+
+Let's log every time we do a SQL query in our relational database.
+
+db.js:
+
+```
+import knex from "knex";
+
+export const db = knex({
+  client: "better-sqlite3",
+  connection: {
+    filename: "./data/db.sqlite3",
+  },
+  useNullAsDefault: true,
+});
+
+db.on("query", ({ sql, bindings }) => {
+  console.log("[db] query:", sql, bindings);
+});
+
+```
+
+If we use our Client app to see a List of Jobs, we'll see that we are doing a **lot of queries.**
+
+Server logs:
+
+```
+[db] query: select * from `jobs` []
+[db] query: select * from `companies` where `id` = ? limit ? [ 'pVbRRBQtMVw6lUAkj1k43', 1 ]
+[db] query: select * from `companies` where `id` = ? limit ? [ 'pVbRRBQtMVw6lUAkj1k43', 1 ]
+[db] query: select * from `companies` where `id` = ? limit ? [ 'wvdB54Gqbdp_NZTXK9Tue', 1 ]
+[db] query: select * from `companies` where `id` = ? limit ? [ 'wvdB54Gqbdp_NZTXK9Tue', 1 ]
+[db] query: select * from `companies` where `id` = ? limit ? [ 'pVbRRBQtMVw6lUAkj1k43', 1 ]
+[db] query: select * from `companies` where `id` = ? limit ? [ 'pVbRRBQtMVw6lUAkj1k43', 1 ]
+[db] query: select * from `companies` where `id` = ? limit ? [ 'wvdB54Gqbdp_NZTXK9Tue', 1 ]
+```
+
+This is known as the N + 1 Quey Problem.
+
+We did 1 query for actually getting the List of Jobs. But then we did N queries to get the Company for each job.
+
+If we have a list of 200 jobs, our code we'll do 201 queries. This leads to **bad performance** and **it is not scalable.**
+
+We can see **why** this is happening by looking to our resolvers:
+
+```
+export const resolvers = {
+
+  Query: {
+    jobs: async () => await db.select().from("jobs"), // 1 Query
+  },
+
+  Job: {
+    // first argument is the parent object, in thi case a job
+    company: (job) => {
+      // resolves a company for a job
+      return db.select().from("companies").where("id", job.companyId).first(); // N Queries
+    },
+  },
+}
+
+Total: N + 1 Queries.
+```
+
+Even if some companies share the same jobID, we'll done 1 query individually for each company.
+
+But we can translate these GraphQL to a efficient SQL query:
+
+```
+SELECT job.id, job.title, company.id, company.name
+FROM jobs as job
+JOIN companies as company
+ON company.id = job.companyId;
+```
+
+Problem: **Translating every GraphQL to an optimized SQL query will be very difficult, because remember: the client can choose what to request in the query, there are too many possible combinations.**
+
+We don't know at which point an efficient SQL query is necessary.
+
+There is a solution to this problem: **The DataLoader** library, which is a generic tool, works with every type of database, or even if we load data form an API.
+
+Batching: the ability of load multiple items in a single request, this is what we need. It also provides caching features.
+
+```
+npm i -S dataloader
+```
+
+db.js:
+
+```
+import DataLoader from "dataloader";
+
+export const companyLoader = new DataLoader(async (companyIds) => {
+  console.log("[companyLoader] companyIds: ", companyIds);
+  const companies = await db
+    .select()
+    .from("companies")
+    .whereIn("id", companyIds);
+
+  // we must ensure that we return in the same order as in the input array
+  return companyIds.map((companyId) => {
+    return companies.find((company) => company.id === companyId);
+  });
+});
+
+```
+
+resolver.js:
+
+```
+export const resolvers = {
+  Query: {
+    jobs: async () => await db.select().from("jobs"), // 1 Query
+  },
+  Job: {
+    // first argument is the parent object, in thi case a job
+    company: async (job) => {
+      // resolves a company for a job
+      return  await companyLoader.load(job.companyId); // collects the ids
+    },
+  },
+}
+
+```
+
+If we look at the logs:
+
+```
+[db] query: select * from `jobs` []
+[companyLoader] companyIds:  [ 'pVbRRBQtMVw6lUAkj1k43', 'wvdB54Gqbdp_NZTXK9Tue' ]
+[db] query: select * from `companies` where `id` in (?, ?) [ 'pVbRRBQtMVw6lUAkj1k43', 'wvdB54Gqbdp_NZTXK9Tue' ]
+```
+
+We are just doing 2 Queries always, which is much better. We solve it using batching.
+
+If we do the same query again, we only do 1 query, because it cached the data of the companies since we only have 1 global companyLoader instance.
+
+```
+[db] query: select * from `jobs` []
+```
+
+In a lot of scenarios we want always fresh data. **We can create a function that always returns a new DataLoader.**
+
+db.js:
+
+```
+export function createCompanyLoader() {
+  return new DataLoader(async (companyIds) => {
+    console.log("[companyLoader] companyIds: ", companyIds);
+    const companies = await db
+      .select()
+      .from("companies")
+      .whereIn("id", companyIds);
+
+    // we must ensure that we return in the same order as in the input array
+    return companyIds.map((companyId) => {
+      return companies.find((company) => company.id === companyId);
+    });
+  });
+}
+```
+
+Update server.js to pass a new companyLoader in the context for every new request:
+
+```
+const context = async ({ req, res }) => {
+  const companyLoader = createCompanyLoader();
+
+  if (req.auth) {
+    const user = await db
+      .select()
+      .from("users")
+      .where("id", req.auth.sub)
+      .first();
+    return { user, companyLoader };
+  }
+  return { companyLoader };
+};
+
+```
+
+Update resolvers.js to use the loader form the context:
+
+```
+export const resolvers = {
+  Query: {
+    jobs: async () => await db.select().from("jobs"), // 1 Query
+  },
+  Job: {
+    company: async (job) => {
+      // resolves a company for a job
+      return  await companyLoader.load(job.companyId);
+    },
+}
+```
+
+Now, no data is being cached, we create a new DataLoader in every new request.
