@@ -21,9 +21,9 @@ export const resolvers = {
 
   Job: {
     // first argument is the parent object, in thi case a job
-    company: (job) => {
+    company: async (job, _args, { companyLoader }) => {
       // console.log(`resolving company for job:`, job);
-      return db.select().from("companies").where("id", job.companyId).first();
+      return await companyLoader.load(job.companyId);
     },
   },
 

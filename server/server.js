@@ -2,7 +2,7 @@ import cors from "cors";
 import express from "express";
 import { expressjwt } from "express-jwt";
 import jwt from "jsonwebtoken";
-import { db } from "./db.js";
+import { createCompanyLoader, db } from "./db.js";
 import { ApolloServer } from "apollo-server-express";
 import { readFileSync } from "fs";
 import { resolvers } from "./resolvers.js";
@@ -38,15 +38,17 @@ app.post("/login", async (req, res) => {
 const typeDefs = readFileSync("./schema.graphql", { encoding: "utf-8" });
 
 const context = async ({ req, res }) => {
+  const companyLoader = createCompanyLoader();
+
   if (req.auth) {
     const user = await db
       .select()
       .from("users")
       .where("id", req.auth.sub)
       .first();
-    return { user };
+    return { user, companyLoader };
   }
-  return {};
+  return { companyLoader };
 };
 
 const apolloServer = new ApolloServer({ typeDefs, resolvers, context });
