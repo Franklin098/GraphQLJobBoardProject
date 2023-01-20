@@ -1,3 +1,9 @@
+# Job Board Project
+
+![](./static/image4.png)
+![](./static/image1.png)
+![](./static/image2.png)
+
 # What is GraphQL?
 
 GraphQL is a query language for APIs
